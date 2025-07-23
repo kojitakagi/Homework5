@@ -12,11 +12,11 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 
 ## Task 1: Conceptual Questions
 
--   **Question 1: What is the purpose of using cross-validation when fitting a random forest model?**: The purpose of using cross-validation when fitting a random forest model is to estimate the model’s generalization performance on unseen data. It helps us select optimal hyperparameters, such as the number of trees or the number of variables to try at each split (mtry), and avoid overfitting. Even though random forests reduce variance, cross-validation gives us a more stable estimate of how well the model will perform in practice.
--   **Question 2: Describe the bagged tree algorithm.**: The bagged tree algorithm is an ensemble method that builds multiple decision trees using bootstrap samples of the training data. Each tree is trained on a different resampled dataset, and predictions are aggregated (averaged for regression, majority vote for classification). This process reduces the model’s variance and improves stability, especially for high-variance models like decision trees.
+-   **Question 1: What is the purpose of using cross-validation when fitting a random forest model?**: The purpose of using cross-validation when fitting a random forest model is to estimate the model's generalization performance on unseen data. It helps us select optimal hyperparameters, such as the number of trees or the number of variables to try at each split (mtry), and avoid overfitting. Even though random forests reduce variance, cross-validation gives us a more stable estimate of how well the model will perform in practice.
+-   **Question 2: Describe the bagged tree algorithm.**: The bagged tree algorithm is an ensemble method that builds multiple decision trees using bootstrap samples of the training data. Each tree is trained on a different resampled dataset, and predictions are aggregated (averaged for regression, majority vote for classification). This process reduces the model's variance and improves stability, especially for high-variance models like decision trees.
 -   **Question 3: What is meant by a general linear model?**: A general linear model (GLM) refers to a statistical model that explains a continuous outcome variable as a linear combination of one or more predictor variables. It includes multiple linear regression, ANOVA, and ANCOVA models, assuming normally distributed errors and linear relationships.
 -   **Question 4: When fitting a multiple linear regression model, what does adding an interaction term do? That is, what does it allow the model to do differently as compared to when it is not included in the model?**: Adding an interaction term in a multiple linear regression model allows the effect of one predictor variable on the outcome to depend on the value of another predictor. In other words, the relationship between a predictor and the response changes depending on the level of the interacting variable. Without the interaction term, the model assumes the effects of predictors are independent and additive.
--   **Question 5: Why do we split our data into a training and test set?**: We split our data into training and test sets to evaluate how well our model generalizes to new, unseen data. The training set is used to build and fit the model, while the test set is used to estimate the model’s performance on future data. Without a separate test set, we risk overfitting and getting overly optimistic estimates of accuracy.
+-   **Question 5: Why do we split our data into a training and test set?**: We split our data into training and test sets to evaluate how well our model generalizes to new, unseen data. The training set is used to build and fit the model, while the test set is used to estimate the model's performance on future data. Without a separate test set, we risk overfitting and getting overly optimistic estimates of accuracy.
 
 ## Task 2: Data Preparation
 
@@ -51,7 +51,7 @@ ggplot(new_heart, aes(x = MaxHR, y = Age, color = HeartDisease_factor)) +
   theme_minimal()
 ```
 
-Based on the scatterplot, the relationship between Max Heart Rate (MaxHR) and Age differs depending on heart disease status. For individuals with heart disease, Age tends to remain higher even at lower MaxHR, while those without heart disease show a stronger negative relationship between MaxHR and Age. 
+Based on the scatterplot, the relationship between Max Heart Rate (MaxHR) and Age differs depending on heart disease status. For individuals with heart disease, Age tends to remain higher even at lower MaxHR, while those without heart disease show a stronger negative relationship between MaxHR and Age.
 
 We used a **colorblind-friendly palette** (blue and orange) to distinguish between individuals with and without heart disease. Since the regression lines have visibly different slopes, an **interaction model** is more appropriate than an additive model. This allows us to model how the effect of MaxHR on Age depends on heart disease status.
 
@@ -101,6 +101,15 @@ lasso_recipe <- recipe(Age ~ MaxHR + HeartDisease_factor, data = train) %>%
   step_dummy(all_nominal_predictors()) %>%
   step_interact(terms = ~ MaxHR:starts_with("HeartDisease_factor"))
 
+
+# Print the LASSO recipe to show the preprocessing steps
+tidy(lasso_recipe)
+
+# Also show the variables created after prepping the recipe
+prep(lasso_recipe) %>%
+  summary()
+
+
 # Specify the LASSO model (mixture = 1 for LASSO)
 lasso_model <- linear_reg(penalty = tune(), mixture = 1) %>%
   set_engine("glmnet")
@@ -147,23 +156,15 @@ tidy(lasso_fit_model) %>%
 
 ```
 
-5.  Would you expect the RMSEs to be the same or different before calculating them? Why?5. Without looking at the RMSE calculations, would you expect the RMSE calculations to
-
-    be roughly the same or different? Justify your answer using output from your LASSO
-
-    model.
+5.  **Without looking at the RMSE calculations, would you expect the RMSE calculations to be roughly the same or different? Justify your answer using output from your LASSO model.**
 
 I would expect the RMSEs to be quite similar because the number of predictors is small and the variables are all relevant to predicting Age. LASSO may slightly shrink coefficients, but it's unlikely to exclude variables entirely in this setting.
 
-6.  Now compare the RMSE between your OLS and LASSO model and show that the RMSE
-
-    calculations were roughly the same.
+6.  **Now compare the RMSE between your OLS and LASSO model and show that the RMSE calculations were roughly the same.**
 
 The RMSE for both models was approximately 8.45, indicating that the predictive performance of the two models is nearly identical.
 
-7.  Why are the RMSE calculations roughly the same if the coefficients for each model are
-
-    different?
+7.  **Why are the RMSE calculations roughly the same if the coefficients for each model are different?**
 
 Although LASSO introduces shrinkage and potentially variable selection, in this case it retained the same set of informative predictors as the OLS model. As a result, both models yield similar predictions on the test data.
 
@@ -212,13 +213,12 @@ collect_metrics(log_cv2)
 
 ## Model Selection Summary
 
-Model 2 (using ChestPainType instead of MaxHR) achieved higher cross-validation performance:
-- Accuracy: 0.789
-- ROC AUC: 0.846
+Model 2 (using ChestPainType instead of MaxHR) achieved higher cross-validation performance: - Accuracy: 0.789 - ROC AUC: 0.846
 
 Therefore, we chose Model 2 as the better performing model.
 
 ## Final Evaluation on Test Set
+
 ```{r}
 # Fit the selected model (Model 2) on full training data
 log_final_fit <- fit(log_wf2, data = train)
@@ -232,15 +232,13 @@ conf_mat <- confusionMatrix(log_preds$.pred_class, test$HeartDisease_factor)
 conf_mat
 
 ```
+
 ## Interpretation of Results
 
-- **Accuracy**: 77.2%
-- **Sensitivity**: 68.3%
-- **Specificity**: 84.3%
+-   **Accuracy**: 77.2%
+-   **Sensitivity**: 68.3%
+-   **Specificity**: 84.3%
 
-**Interpretation:**
-- **Sensitivity (68.3%)** means 68.3% of patients with heart disease were correctly identified.
-- **Specificity (84.3%)** means 84.3% of patients without heart disease were correctly identified.
+**Interpretation:** - **Sensitivity (68.3%)** means 68.3% of patients with heart disease were correctly identified. - **Specificity (84.3%)** means 84.3% of patients without heart disease were correctly identified.
 
 This suggests that the model performs well at distinguishing patients with and without heart disease, with a stronger ability to correctly identify those without the disease.
-
